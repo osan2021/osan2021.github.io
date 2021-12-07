@@ -1,0 +1,522 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=0.5">
+<title>삼초 동네 룰렛</title>
+<link href=https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.css rel=stylesheet type=text/css>
+<script type=text/javascript src=https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js></script>
+<script type=text/javascript src=https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.min.js></script>
+<!--[if IE]><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jit/2.0.2/Extras/excanvas.min.js"></script><![endif]-->
+<script type=text/javascript>
+// Helpers
+	shuffle = function(o) {
+		for ( var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x)
+			;
+		return o;
+	};
+
+	String.prototype.hashCode = function(){
+		// See http://www.cse.yorku.ca/~oz/hash.html		
+		var hash = 5381;
+		for (i = 0; i < this.length; i++) {
+			char = this.charCodeAt(i);
+			hash = ((hash<<5)+hash) + char;
+			hash = hash & hash; // Convert to 32bit integer
+		}
+		return hash;
+	}
+
+	Number.prototype.mod = function(n) {
+		return ((this%n)+n)%n;
+	}
+</script>
+<script type=text/javascript>
+venues = {
+		"23000"  : "김현수",
+		"11271"  : "조현석",
+		"11518"  : "정영근",
+		"12360"  : "류춘근",
+		"15952"  : "이원영",
+		"18050"  : "장성용",
+		"17306"  : "김종훈",
+		"18078"  : "이길흥",
+		"18068"  : "이동국",
+		"18051"  : "박세혁",
+		"12867"  : "전중열",
+		"22424"  : "홍정식",
+		"12493"  : "김성권",
+		"10259"  : "김철",
+		"16624"  : "김병일",
+		"22060"  : "신일훈",
+		"15457"  : "김경화",
+		"15161"  : "박영준",
+		"11724"  : "김정수",
+		"13055"  : "박종혁",
+		"15665"  : "강동호",
+		"12056"  : "김기태",
+		"11056"  : "김현규",
+		"10056"  : "이예훈",
+		"10099"  : "이수룡",
+		"16052"  : "송화창",
+		"11153"  : "장현승",
+		"12854"  : "정성봉",
+		"13854"  : "강기홍",
+		"14854"  : "이치범",
+		"15854"  : "최승준",
+		"16854"  : "황연",
+		"17854"  : "김호경",
+		"18854"  : "박구만",
+		"19854"  : "구형준",
+		"12857"  : "나달"
+	};
+
+var dname = new Array(6);
+var called = new Array(6);
+for (m = 0; m<6; m++){
+    dname[m] = new Array(6);
+    called[m] = new Array(6);
+}
+
+for (m=0; m<6 ; m++) {
+    for (n=0; n<6; n++) {
+        dname[m][n] = "Hi"+m+n;
+        called[m][n] = false;
+    }
+}
+
+function shuffle(array) {
+    var i = array.length,
+        j = 0,
+        temp;
+    while (i--) {
+        j = Math.floor(Math.random() * (i+1));
+        // swap randomly chosen element with current element
+        temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+    return array;
+}
+var ranNums = shuffle([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]);
+
+
+	$(function() {
+
+		var venueContainer = $('#venues ul');
+		$.each(venues, function(key, item) {
+			venueContainer.append(
+		        $(document.createElement("button"))
+		        .append(
+	                $(document.createElement("input")).attr({
+                         id:    'venue-' + key
+                        ,name:  item
+                        ,value: item
+                        ,type:  'checkbox'
+                        ,checked:true
+	                })
+	                .change( function() {
+	                	var cbox = $(this)[0];
+	                	var segments = wheel.segments;
+	                	var i = segments.indexOf(cbox.value);
+
+	                	if (cbox.checked && i == -1) {
+	                		segments.push(cbox.value);
+
+	                	} else if ( !cbox.checked && i != -1 ) {
+	                		segments.splice(i, 1);
+	                	}
+
+	                	segments.sort();
+	                	wheel.update();
+	                } )
+
+		        ).append(
+	                $(document.createElement('label')).attr({
+	                    'for':  'venue-' + key
+	                })
+	                .text( item )
+		        )
+		    )
+		});
+
+		my = $("input");
+		let k = 0;
+    for (m=0; m<6 ; m++) {
+        for (n=0; n<6; n++) {
+            dname[m][n] = my[ranNums[k++]].value;
+            called[m][n] = false;
+        }
+    }
+
+		$('#venues ul>li').tsort("input", {attr: "value"});
+
+
+
+	});
+</script>
+<script type=text/javascript>
+// WHEEL!
+	var dest = "당첨 : ";
+	var wheel = {
+
+		timerHandle : 0,
+		timerDelay : 33,
+
+		angleCurrent : 0,
+		angleDelta : 0,
+
+		size : 290,
+
+		canvasContext : null,
+
+		colors : [ '#ffff00', '#ffc700', '#ff9100', '#ff6301', '#ff0000', '#c6037e',
+		           '#713697', '#444ea1', '#2772b2', '#0297ba', '#008e5b', '#8ac819' ],
+
+		//segments : [ 'Andrew', 'Bob', 'Fred', 'John', 'China', 'Steve', 'Jim', 'Sally', 'Andrew', 'Bob', 'Fred', 'John', 'China', 'Steve', 'Jim'],
+		segments : [],
+
+		seg_colors : [], // Cache of segments to colors
+		
+		maxSpeed : Math.PI / 16,
+
+		upTime : 1000, // How long to spin up for (in ms)
+		downTime : 5000, // How long to slow down for (in ms)
+
+		spinStart : 0,
+
+		frames : 0,
+
+		centerX : 300,
+		centerY : 300,
+
+		spin : function() {
+
+			// Start the wheel only if it''s not already spinning
+			if (wheel.timerHandle == 0) {
+				wheel.spinStart = new Date().getTime();
+				wheel.maxSpeed = Math.PI / (16 + Math.random()); // Randomly vary how hard the spin is
+				wheel.frames = 0;
+				wheel.sound.play();
+
+				wheel.timerHandle = setInterval(wheel.onTimerTick, wheel.timerDelay);
+			}
+		},
+
+		onTimerTick : function() {
+
+			wheel.frames++;
+
+			wheel.draw();
+
+			var duration = (new Date().getTime() - wheel.spinStart);
+			var progress = 0;
+			var finished = false;
+
+			if (duration < wheel.upTime) {
+				progress = duration / wheel.upTime;
+				wheel.angleDelta = wheel.maxSpeed
+						* Math.sin(progress * Math.PI / 2);
+			} else {
+				progress = duration / wheel.downTime;
+				wheel.angleDelta = wheel.maxSpeed
+						* Math.sin(progress * Math.PI / 2 + Math.PI / 2);
+				if (progress >= 1)
+					finished = true;
+			}
+
+			wheel.angleCurrent += wheel.angleDelta;
+			while (wheel.angleCurrent >= Math.PI * 2)
+				// Keep the angle in a reasonable range
+				wheel.angleCurrent -= Math.PI * 2;
+
+			if (finished) {
+				clearInterval(wheel.timerHandle);
+				wheel.timerHandle = 0;
+				wheel.angleDelta = 0;
+
+				//$("#counter").html((wheel.frames / duration * 1000) + " FPS");
+				$("#counter").html($("#counter").html() + dest + ". ");
+
+      for (m=0; m<6 ; m++) {
+          for (n=0; n<6; n++) {
+              if ( dname[m][n] == dest )
+                  called[m][n] = true;
+          }
+      }
+
+				drawGrid(700, 700, "grid");
+
+			}
+
+			/*
+			// Display RPM
+			var rpm = (wheel.angleDelta * (1000 / wheel.timerDelay) * 60) / (Math.PI * 2);
+			//$("#counter").html( Math.round(rpm) + " RPM" );
+			 */
+		},
+
+		init : function(optionList) {
+			try {
+				wheel.initWheel();
+				wheel.initAudio();
+				wheel.initCanvas();
+				wheel.draw();
+
+				$.extend(wheel, optionList);
+
+			} catch (exceptionData) {
+				alert('Wheel is not loaded ' + exceptionData);
+			}
+
+		},
+
+		initAudio : function() {
+			var sound = document.createElement('audio');
+			sound.setAttribute('src', 'wheel.mp3');
+			wheel.sound = sound;
+		},
+
+		initCanvas : function() {
+			var canvas = $('#wheel #canvas').get(0);
+
+			if ($.browser.msie) {
+				canvas = document.createElement('canvas');
+				$(canvas).attr('width', 700).attr('height', 600).attr('id', 'canvas').appendTo('.wheel');
+				canvas = G_vmlCanvasManager.initElement(canvas);
+			}
+
+			canvas.addEventListener("click", wheel.spin, false);
+			wheel.canvasContext = canvas.getContext("2d");
+		},
+
+		initWheel : function() {
+			shuffle(wheel.colors);
+		},
+
+		// Called when segments have changed
+		update : function() {
+			// Ensure we start mid way on a item
+			//var r = Math.floor(Math.random() * wheel.segments.length);
+			var r = 0;
+			wheel.angleCurrent = ((r + 0.5) / wheel.segments.length) * Math.PI * 2;
+
+			var segments = wheel.segments;
+			var len      = segments.length;
+			var colors   = wheel.colors;
+			var colorLen = colors.length;
+
+			// Generate a color cache (so we have consistant coloring)
+			var seg_color = new Array();
+			for (var i = 0; i < len; i++)
+				seg_color.push( colors [ segments[i].hashCode().mod(colorLen) ] );
+
+			wheel.seg_color = seg_color;
+
+			wheel.draw();
+		},
+
+		draw : function() {
+			wheel.clear();
+			wheel.drawWheel();
+			wheel.drawNeedle();
+		},
+
+		clear : function() {
+			var ctx = wheel.canvasContext;
+			ctx.clearRect(0, 0, 1000, 800);
+		},
+
+		drawNeedle : function() {
+			var ctx = wheel.canvasContext;
+			var centerX = wheel.centerX;
+			var centerY = wheel.centerY;
+			var size = wheel.size;
+
+			ctx.lineWidth = 1;
+			ctx.strokeStyle = '#000000';
+			ctx.fileStyle = '#ffffff';
+
+			ctx.beginPath();
+
+			ctx.moveTo(centerX + size - 40, centerY);
+			ctx.lineTo(centerX + size + 20, centerY - 10);
+			ctx.lineTo(centerX + size + 20, centerY + 10);
+			ctx.closePath();
+
+			ctx.stroke();
+			ctx.fill();
+
+			// Which segment is being pointed to?
+			var i = wheel.segments.length - Math.floor((wheel.angleCurrent / (Math.PI * 2))	* wheel.segments.length) - 1;
+
+			// Now draw the winning name
+			ctx.textAlign = "left";
+			ctx.textBaseline = "middle";
+			ctx.fillStyle = '#000000';
+			ctx.font = "2em Arial";
+			ctx.fillText(wheel.segments[i], centerX + size + 25, centerY);
+			dest = wheel.segments[i];
+
+
+			
+
+		},
+
+		drawSegment : function(key, lastAngle, angle) {
+			var ctx = wheel.canvasContext;
+			var centerX = wheel.centerX;
+			var centerY = wheel.centerY;
+			var size = wheel.size;
+
+			var segments = wheel.segments;
+			var len = wheel.segments.length;
+			var colors = wheel.seg_color;
+
+			var value = segments[key];
+			
+			ctx.save();
+			ctx.beginPath();
+
+			// Start in the centre
+			ctx.moveTo(centerX, centerY);
+			ctx.arc(centerX, centerY, size, lastAngle, angle, false); // Draw a arc around the edge
+			ctx.lineTo(centerX, centerY); // Now draw a line back to the centre
+
+			// Clip anything that follows to this area
+			//ctx.clip(); // It would be best to clip, but we can double performance without it
+			ctx.closePath();
+
+			ctx.fillStyle = colors[key];
+			ctx.fill();
+			ctx.stroke();
+
+			// Now draw the text
+			ctx.save(); // The save ensures this works on Android devices
+			ctx.translate(centerX, centerY);
+			ctx.rotate((lastAngle + angle) / 2);
+
+			ctx.fillStyle = '#000000';
+			ctx.fillText(value.substr(0, 20), size/2 + 60, 0);
+			ctx.restore();
+
+			ctx.restore();
+		},
+
+		drawWheel : function() {
+			var ctx = wheel.canvasContext;
+
+			var angleCurrent = wheel.angleCurrent;
+			var lastAngle    = angleCurrent;
+
+			var segments  = wheel.segments;
+			var len       = wheel.segments.length;
+			var colors    = wheel.colors;
+			var colorsLen = wheel.colors.length;
+
+			var centerX = wheel.centerX;
+			var centerY = wheel.centerY;
+			var size    = wheel.size;
+
+			var PI2 = Math.PI * 2;
+
+			ctx.lineWidth    = 1;
+			ctx.strokeStyle  = '#000000';
+			ctx.textBaseline = "middle";
+			ctx.textAlign    = "center";
+			ctx.font         = "1.4em Arial";
+
+			for (var i = 1; i <= len; i++) {
+				var angle = PI2 * (i / len) + angleCurrent;
+				wheel.drawSegment(i - 1, lastAngle, angle);
+				lastAngle = angle;
+			}
+			// Draw a center circle
+			ctx.beginPath();
+			ctx.arc(centerX, centerY, 20, 0, PI2, false);
+			ctx.closePath();
+
+			ctx.fillStyle   = '#ffffff';
+			ctx.strokeStyle = '#000000';
+			ctx.fill();
+			ctx.stroke();
+
+			// Draw outer circle
+			ctx.beginPath();
+			ctx.arc(centerX, centerY, size, 0, PI2, false);
+			ctx.closePath();
+
+			ctx.lineWidth   = 10;
+			ctx.strokeStyle = '#000000';
+			ctx.stroke();
+		},
+	}
+
+
+var drawGrid = function(w, h, id) {
+       var canvas = document.getElementById(id);
+       var ctx = canvas.getContext('2d');
+       ctx.canvas.width = w;
+       ctx.canvas.height = h;
+
+
+       for (x = 0; x <= w; x += (700/6)) {
+           ctx.moveTo(x, 0);
+           ctx.lineTo(x, h);
+           for (y = 0; y <= h; y += (700/6)) {
+               ctx.moveTo(0, y);
+               ctx.lineTo(w, y);
+           }
+       }
+       ctx.stroke();
+
+      for (i=0,x=70 ; i<6 ; i++,x+=(700/6) ) {
+          for (j=0,y=70 ; j<6 ; j++,y+=(700/6) ) {
+        			 ctx.textAlign = "center";
+        			 ctx.textBaseline = "middle";
+        			 ctx.fillStyle = '#000000';
+        			 ctx.font = "2em Arial";
+        			 ctx.fillText(dname[i][j], x-10, y);
+
+              if ( called[i][j] ) {
+                  ctx.beginPath();
+                  ctx.lineWidth = 5
+                  ctx.strokeStyle = "red"; //"rgb(255, 0, 0)";
+                  ctx.arc(x-10, y-10, 55, 0, Math.PI * 2, true); // Outer circle
+                  ctx.stroke();
+              }
+           }
+       }
+
+};
+
+	window.onload = function() {
+		wheel.init();
+
+		var segments = new Array();
+		$.each($('#venues input:checked'), function(key, cbox) {
+			segments.push( cbox.value );
+		});
+
+		wheel.segments = segments;
+		wheel.update();
+		drawGrid(700, 700, "grid");
+
+		// Hide the address bar (for mobile devices)!
+		setTimeout(function() {
+			window.scrollTo(0, 1);
+		}, 0);
+	}
+</script>
+</head>
+<body>
+<div id=venues style="float:left;display:none"><ul/></div>
+<div id=wheel>
+<canvas id="grid" style="border:2px solid black;" width="700" height="700"></canvas>
+<canvas height=600 id="canvas" width=720></canvas>
+</div>
+<div id=stats>
+<div id=counter style="font-weight:bold;">당첨 : </div>
+</div>
+</body>
+</html>
